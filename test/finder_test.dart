@@ -54,6 +54,7 @@ void main() {
     List<String> include = const [],
     List<EntryPoint> entryPoints = const [],
     bool transitive = false,
+    int? servers,
   }) => Ciach(
     .new(
       rootPath: fixturePath,
@@ -65,6 +66,7 @@ void main() {
       includeGlobs: include,
       entryPoints: entryPoints,
       transitive: transitive,
+      servers: servers,
     ),
   ).run();
 
@@ -94,6 +96,29 @@ void main() {
 
   UnusedDeclaration? findByQualified(FinderResult result, String qualified) =>
       result.unused.firstWhereOrNull((d) => d.qualifiedName == qualified);
+
+  test('a pool of servers finds exactly what a single server does', () async {
+    String describe(FinderResult result) => [
+      for (final d in result.unused)
+        [
+          d.filePath,
+          d.line,
+          d.qualifiedName,
+          d.removalBlocked,
+          d.onlyReferencedFrom.length,
+        ].join(' '),
+      for (final d in result.docOnly) 'doc ${d.filePath}:${d.line}',
+    ].sorted().join('\n');
+
+    // Every scenario, transitively, so each request type hits the pool.
+    final single = await runFinder(exclude: [], transitive: true, servers: 1);
+    final pooled = await runFinder(exclude: [], transitive: true, servers: 3);
+
+    expect(single.unused, isNotEmpty);
+    expect(describe(pooled), describe(single));
+    expect(pooled.declarationsChecked, single.declarationsChecked);
+    expect(pooled.problems, isEmpty);
+  });
 
   test('reports exactly the expected unused declarations by default', () async {
     expect(await findUnused(), {

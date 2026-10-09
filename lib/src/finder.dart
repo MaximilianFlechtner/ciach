@@ -18,6 +18,7 @@ import 'package:ciach/src/conventions/freezed.dart';
 import 'package:ciach/src/file_discovery.dart';
 import 'package:ciach/src/log.dart';
 import 'package:ciach/src/lsp/lsp_client.dart';
+import 'package:ciach/src/lsp/lsp_pool.dart';
 import 'package:ciach/src/models.dart';
 import 'package:ciach/src/paths.dart';
 import 'package:ciach/src/plural.dart';
@@ -122,10 +123,17 @@ class Ciach {
       );
     }
 
-    _log.info('Starting Dart analysis server…');
-    final client = await LspClient.start(
-      dartExecutable: options.dartExecutable,
+    _log.info(
+      options.servers == 1
+          ? 'Starting Dart analysis server…'
+          : 'Starting ${options.servers} Dart analysis servers…',
     );
+    final LspClient client = options.servers == 1
+        ? await LspClient.start(dartExecutable: options.dartExecutable)
+        : await LspPool.start(
+            size: options.servers,
+            dartExecutable: options.dartExecutable,
+          );
 
     final Settled settled;
     final int declarationsChecked;
@@ -157,7 +165,7 @@ class Ciach {
       );
       final perFile = await mapPooled(
         files,
-        options.concurrency,
+        options.requestsInFlight,
         (path) => opened.contains(path)
             ? _collector.collect(client, path, rootPath)
             : .value(const <Candidate>[]),

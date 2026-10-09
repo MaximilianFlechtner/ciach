@@ -93,7 +93,8 @@ ciach --verbose                        # explain each step
 | `--generated-glob <glob>` | — | Treat files matching the glob as generated: their references count, but nothing in them is reported or removed. For output without a suffix or banner, like `flutter gen-l10n`'s (`'lib/l10n/**'`), or code kept as is, like a vendored copy. Repeatable; ignored when `--generated` is set. |
 | `-k, --kinds <list>` | all | Restrict to kinds: `class, mixin, interface, enum, extension, extension-type, function, method, constructor, field, property, getter, setter, variable, constant, enum-value`. |
 | `-f, --format <fmt>` | `text` | `text`, `json`, or `github` (GitHub Actions `::warning` annotations). |
-| `-j, --concurrency <n>` | `16` | Reference queries kept in flight against the analysis server. |
+| `-s, --servers <n>` | half the cores, at most 4 | Analysis servers to run in parallel. See [Performance](#performance). |
+| `-j, --concurrency <n>` | `16` | Requests kept in flight against each analysis server. |
 | `--[no-]color` | auto | Colorize the output. Auto-detected per stream; honors `NO_COLOR`. |
 | `--[no-]progress` | auto | Show scan progress on stderr. |
 | `-v, --verbose` | off | Explain what's happening on stderr. See [Verbose mode](#verbose-mode). |
@@ -150,6 +151,7 @@ $ ciach -v
 [  0.0s] [cli]       path: /home/me/pkg (command line)
 [  0.0s] [cli]       public: false (config file)
 [  0.0s] [cli]       concurrency: 16 (default)
+[  0.0s] [cli]       servers: 4 (auto-detected)
 …
 [  0.1s] [finder]  Starting Dart analysis server…
 [  0.1s] [lsp]     Started `/sdk/bin/dart language-server` (pid 4242).
@@ -359,8 +361,19 @@ deleting blindly:
 Runtime is the analysis server's, not the tool's. It analyzes the whole package
 once per run — tens of seconds for a large Flutter app, and unskippable, since
 incomplete analysis means wrong reference counts — then answers one
-`textDocument/references` per declaration through a pool of `-j` (default 16),
-with scanned files kept open so its resolved-unit cache stays warm.
+`textDocument/references` per declaration, with scanned files kept open so its
+resolved-unit cache stays warm.
+
+A server answers on a single core, however many requests are in flight, so
+ciach runs several side by side (`--servers`, by default half the cores, at
+most 4) and sends each request to the least busy one, keeping `-j` (default
+16) in flight per server. Each server sees the same code, so the findings are
+the same for any count. The gain flattens out: every server runs the initial
+analysis in full, and resolves on its own the files its searches touch. On a
+1,666-file Flutter app with 22,758 declarations, a run took 225s with one
+server, 157s with two, 139s with four and 146s with seven. Memory grows by one
+full analysis per server — 1.5 to 3 GB each for that app — so lower `--servers`
+on a tight machine.
 
 The lever is how much you ask for. `--no-public` is by far the cheapest mode:
 private declarations are library-scoped, so each query searches one library

@@ -8,6 +8,8 @@
  *     - mark-ai-provenance
  */
 
+import 'dart:io';
+
 import 'package:ciach/src/conventions/entry_points.dart';
 import 'package:ciach/src/paths.dart';
 import 'package:pro_lsp/pro_lsp.dart' show SymbolKind;
@@ -37,6 +39,10 @@ typedef CoupledRemoval = ({
   DeclarationRange fullRange,
 });
 
+/// The most analysis servers a run starts unless told otherwise; each holds
+/// a whole analysis in memory.
+const maxDefaultServers = 4;
+
 /// Configuration for a single run of the finder.
 class FinderOptions {
   /// Creates options for analyzing the package rooted at [rootPath].
@@ -60,10 +66,13 @@ class FinderOptions {
     this.transitive = false,
     this.entryPoints = const [],
     this.concurrency = 16,
+    int? servers,
     this.dartExecutable,
   }) : rootPath = rootPath.absoluteNormalized,
        analysisRootPath = analysisRootPath?.absoluteNormalized,
-       assert(concurrency > 0, 'concurrency must be positive');
+       servers = servers ?? defaultServers,
+       assert(concurrency > 0, 'concurrency must be positive'),
+       assert(servers == null || servers > 0, 'servers must be positive');
 
   /// The package root to analyze, absolute and normalized.
   final String rootPath;
@@ -155,10 +164,23 @@ class FinderOptions {
   /// is never a candidate, so it is neither reported nor removed.
   final List<EntryPoint> entryPoints;
 
-  /// How many `textDocument/references` requests to keep in flight at once.
-  /// Higher values keep the analysis server busier; there are diminishing
-  /// returns past its internal parallelism.
+  /// How many requests to keep in flight against each analysis server. A
+  /// server answers one at a time, so past a few this only queues.
   final int concurrency;
+
+  /// How many analysis servers to run in parallel. Each analyzes the whole
+  /// [analysisRootPath] and answers on one core, so more of them check
+  /// references faster, with diminishing returns, while memory grows by one
+  /// analysis per server.
+  final int servers;
+
+  /// Requests kept in flight across all [servers].
+  int get requestsInFlight => concurrency * servers;
+
+  /// The [servers] used when none is given: half the cores, so the machine
+  /// stays usable, capped at [maxDefaultServers] to bound memory.
+  static int get defaultServers =>
+      (Platform.numberOfProcessors ~/ 2).clamp(1, maxDefaultServers);
 
   /// Path to the `dart` executable used to launch the analysis server.
   /// Defaults to the SDK running this tool, or to `dart` from `PATH` when this

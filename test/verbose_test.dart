@@ -152,6 +152,10 @@ void main() {
         contains('  entry-points: registerWith in lib/** (config file)'),
       );
       expect(lines, contains('  concurrency: 16 (default)'));
+      expect(
+        lines,
+        contains('  servers: ${FinderOptions.defaultServers} (auto-detected)'),
+      );
       expect(lines, contains('  color: auto (auto-detected)'));
     });
 

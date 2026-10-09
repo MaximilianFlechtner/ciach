@@ -241,6 +241,19 @@ concurrency: 4
       }
     });
 
+    test('reads servers, and rejects a non-positive count', () {
+      expect(resolveFile('servers: 3').servers, 3);
+      for (final value in ['0', '-1', 'many']) {
+        expect(
+          () => resolveFile('servers: $value'),
+          throwsA(
+            isFormatException('ciach.yaml', contains('positive integer')),
+          ),
+          reason: 'for servers: $value',
+        );
+      }
+    });
+
     test('rejects a non-positive concurrency', () {
       for (final value in ['0', '-2', 'many', '1.5']) {
         expect(
@@ -445,6 +458,7 @@ concurrency: 4
       expect(resolved.format, 'text');
       expect(resolved.verbose, isFalse);
       expect(resolved.concurrency, 16);
+      expect(resolved.servers, isNull);
       expect(resolved.dartExecutable, isNull);
     });
 
@@ -457,6 +471,7 @@ format: json
 color: false
 progress: false
 concurrency: 4
+servers: 2
 dart: /sdk/bin/dart
 ''', origin: 'ciach.yaml');
 
@@ -469,6 +484,8 @@ dart: /sdk/bin/dart
         '--progress',
         '--concurrency',
         '2',
+        '--servers',
+        '5',
         '--dart',
         '/other/dart',
         'packages/other',
@@ -481,6 +498,7 @@ dart: /sdk/bin/dart
       expect(resolved.color, isTrue);
       expect(resolved.showProgress, isTrue);
       expect(resolved.concurrency, 2);
+      expect(resolved.servers, 5);
       expect(resolved.dartExecutable, '/other/dart');
     });
 

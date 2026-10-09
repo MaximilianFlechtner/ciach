@@ -98,6 +98,8 @@ String _setting(
   .progress => '${resolved.showProgress}',
   .verbose => '${resolved.verbose}',
   .concurrency => '${resolved.concurrency}',
+  // Unset, it settles on a count from the cores.
+  .servers => '${options.servers}',
   .dart => dartExecutable,
   // No config key, so never listed; spelled out so a new option must be too.
   .help || .version || .config || .noConfig => '',

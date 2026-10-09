@@ -1,3 +1,12 @@
+## Unreleased
+
+- Add `--servers <n>` (`-s`, and `servers:` in `ciach.yaml`): run several
+  analysis servers in parallel and spread the requests across them. One server
+  answers on a single core, so the reference checks were bound to one core;
+  they now spread across the servers, by default half the cores, at most 4.
+  On a large Flutter app a run went from 225s to 139s with four. Each server
+  holds a full analysis in memory. `-j` now counts requests per server.
+
 ## 0.6.0
 
 - **Breaking:** `FinderOptions.onProgress` is removed; ciach logs through

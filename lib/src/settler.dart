@@ -351,7 +351,7 @@ final class Settler {
       );
       final results = await mapPooled(
         unchecked,
-        options.concurrency,
+        options.requestsInFlight,
         (index) => overrides.of(candidates[index]),
       );
       for (var i = 0; i < unchecked.length; i++) {
@@ -467,7 +467,7 @@ final class Settler {
       sources: _sources,
       candidates: candidates,
       emptyRefNames: emptyRefNames,
-      concurrency: options.concurrency,
+      concurrency: options.requestsInFlight,
     );
   }
 

@@ -49,7 +49,7 @@ final class ReferenceFetch {
     }
     var filesDone = totalFiles - remainingPerFile.length;
 
-    final fetched = await mapPooled(candidates, options.concurrency, (
+    final fetched = await mapPooled(candidates, options.requestsInFlight, (
       candidate,
     ) async {
       // The server would answer for an unnamed extension's `on` type.
@@ -116,7 +116,7 @@ final class ReferenceFetch {
     _log.info(
       'Fetching tokens for ${plural(paths.length, 'referenced file', 'referenced files')}…',
     );
-    await mapPooled(paths.toList(), options.concurrency, (path) async {
+    await mapPooled(paths.toList(), options.requestsInFlight, (path) async {
       _sources.cacheSemanticTokens(
         path,
         await semanticTokensOrEmpty(client, _sources, path),
@@ -165,28 +165,30 @@ final class ReferenceFetch {
     _log.info(
       'Fetching syntax nodes in ${plural(positionsByPath.length, 'file', 'files')}…',
     );
-    await mapPooled(positionsByPath.entries.toList(), options.concurrency, (
-      entry,
-    ) async {
-      final MapEntry(key: path, value: positions) = entry;
-      final ordered = positions.toList();
-      try {
-        final ranges = await client.selectionRanges(File(path).uri, ordered);
-        for (var i = 0; i < ordered.length; i++) {
-          if (ranges[i] case final range?) {
-            _sources.cacheSelectionRange(path, ordered[i], range);
+    await mapPooled(
+      positionsByPath.entries.toList(),
+      options.requestsInFlight,
+      (entry) async {
+        final MapEntry(key: path, value: positions) = entry;
+        final ordered = positions.toList();
+        try {
+          final ranges = await client.selectionRanges(File(path).uri, ordered);
+          for (var i = 0; i < ordered.length; i++) {
+            if (ranges[i] case final range?) {
+              _sources.cacheSelectionRange(path, ordered[i], range);
+            }
           }
+        } on LspRequestException catch (e) {
+          // A position with no cached range reads as "not the special shape".
+          recordProblem(
+            _noSelectionRanges,
+            e,
+            path: path,
+            position: ordered.first,
+          );
         }
-      } on LspRequestException catch (e) {
-        // A position with no cached range reads as "not the special shape".
-        recordProblem(
-          _noSelectionRanges,
-          e,
-          path: path,
-          position: ordered.first,
-        );
-      }
-    });
+      },
+    );
   }
 }
 

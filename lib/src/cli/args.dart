@@ -10,6 +10,7 @@
 
 import 'package:args/args.dart';
 import 'package:ciach/ciach.dart';
+import 'package:ciach/src/models.dart' show maxDefaultServers;
 import 'package:ciach/src/version.dart';
 import 'package:collection/collection.dart';
 import 'package:config/config.dart';
@@ -392,9 +393,23 @@ enum CiachOption<V> implements OptionDefinition<V> {
       defaultsTo: 16,
       min: 1,
       helpText:
-          'How many reference queries to run against the analysis server at\n'
-          'once. Higher can be faster on large projects, up to the limit of\n'
-          'the analysis server parallelism.',
+          'How many reference queries to keep in flight against each\n'
+          'analysis server. A server answers one at a time; a few queued\n'
+          'keep it from idling between answers.',
+    ),
+  ),
+  servers(
+    IntOption(
+      argName: 'servers',
+      argAbbrev: 's',
+      configKey: '/servers',
+      valueHelp: 'n',
+      min: 1,
+      helpText:
+          'How many analysis servers to run in parallel. Each one answers on\n'
+          'one core, so more of them check references faster, with\n'
+          'diminishing returns and one full analysis in memory per server.\n'
+          'Defaults to half the cores, at most $maxDefaultServers.',
     ),
   ),
   dart(

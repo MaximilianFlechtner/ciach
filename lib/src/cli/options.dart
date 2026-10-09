@@ -32,6 +32,7 @@ class ResolvedOptions {
     required this.showProgress,
     required this.verbose,
     required this.concurrency,
+    required this.servers,
     required this.dartExecutable,
   });
 
@@ -74,6 +75,9 @@ class ResolvedOptions {
   final bool showProgress;
   final bool verbose;
   final int concurrency;
+
+  /// `--servers`, or `null` to pick from the core count.
+  final int? servers;
   final String? dartExecutable;
 
   /// The finder's options.
@@ -94,6 +98,7 @@ class ResolvedOptions {
     transitive: transitive,
     entryPoints: entryPoints,
     concurrency: concurrency,
+    servers: servers,
     dartExecutable: dartExecutable ?? this.dartExecutable,
   );
 }
@@ -147,6 +152,7 @@ ResolvedOptions resolveOptions(
         (configuration.optionalValue(CiachOption.progress) ?? progressDefault),
     verbose: verbose,
     concurrency: configuration.value(CiachOption.concurrency),
+    servers: configuration.optionalValue(CiachOption.servers),
     dartExecutable: configuration.optionalValue(CiachOption.dart),
   );
 }
